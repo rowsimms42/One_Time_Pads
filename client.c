@@ -18,7 +18,7 @@
 // Error function used for reporting issues
 void error(const char *msg) {
     perror(msg);
-    exit(0);
+    exit(1);
 }
 
 // Set up the address struct
@@ -37,8 +37,7 @@ void setupAddressStruct(struct sockaddr_in* address,
     // Get the DNS entry for this host name
     struct hostent* hostInfo = gethostbyname(hostname);
     if (hostInfo == NULL) {
-        fprintf(stderr, "CLIENT: ERROR, no such host\n");
-        exit(0);
+        error("CLIENT: ERROR, no such host\n");
     }
     // Copy the first IP address from the DNS entry to sin_addr.s_addr
     memcpy((char*) &address->sin_addr.s_addr,
@@ -49,11 +48,11 @@ void setupAddressStruct(struct sockaddr_in* address,
 int main(int argc, char *argv[]) {
     int socketFD, portNumber, charsWritten, charsRead;
     struct sockaddr_in serverAddress;
-    char buffer[256];
+    char buffer[5000];
 
     if (argc < 4) {
         fprintf(stderr,"USAGE: %s file key port\n", argv[0]);
-        exit(0);
+        exit(1);
     }
     // Create a socket
     socketFD = socket(AF_INET, SOCK_STREAM, 0);

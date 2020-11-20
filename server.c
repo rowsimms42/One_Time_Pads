@@ -7,15 +7,26 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <fcntl.h>
+#include <sys/types.h>
 
+int status = 0;
 /* Error function used for reporting issues*/
 void error(const char *msg) {
     perror(msg);
     exit(1);
 }
 
-/* Function to encrypt text*/
-void encrypt_message(char** arg){
+void return_status(int wstatus) {
+    if(WIFEXITED(wstatus)){
+        printf("exit status: %d\n", WEXITSTATUS(wstatus));
+    } else{
+        printf("terminated by signal: %d\n", WTERMSIG(wstatus));
+    }
+    fflush(stdout);
+}
+
+void encrypt_message(char** arg, char* out){
     size_t len_p = 0;
     size_t len_k = 0;
     char* plain_line = NULL;
@@ -36,24 +47,25 @@ void encrypt_message(char** arg){
     while(plain_line[i]!='\n'){
         int j = plain_line[i];
         int k = key_line[i];
-        if ((j != 32 && j<65) || j>90)
-            error("ERROR bad characters in plain file");
-        if ((k != 32 && k<65) || k>90)
-            error("ERROR bad characters in key file");
-        if (j > 32 && j!=k)
-            j = j - 65;
-        if (k > 32 && j!=k)
-            k = k - 65;
+        if (j == 32)
+            j = 91;
+        if (k == 32)
+            k = 91;
+        j = j - 65;
+        k = k - 65;
         int sum = j+k;
-        if (sum > 25)
-            sum = sum - 26;
+        if (sum > 26)
+            sum = sum - 27;
         sum = sum+65;
-        if (j == k)
-            sum = j;
+        if (sum == 91){
+            sum = 0;
+            sum = 32;
+        }
         arr[i] = sum;
         i++;
     }
-    arg[2] = arr;
+    arr[i] = '\n';
+    strcpy(out, arr);
 }
 
 // Set up the address struct for the server socket
@@ -67,9 +79,10 @@ void setupAddressStruct(struct sockaddr_in* address,
 
 int main(int argc, char *argv[]){
     int connectionSocket, charsRead;
-    char buffer[256];
+    char buffer[5000];
     struct sockaddr_in serverAddress, clientAddress;
     socklen_t sizeOfClientInfo = sizeof(clientAddress);
+    pid_t spawnpid;
 
     if (argc < 2) {
         fprintf(stderr,"USAGE: %s port\n", argv[0]);
@@ -91,43 +104,49 @@ int main(int argc, char *argv[]){
     }
 
     listen(listenSocket, 5); /*allow up to 5 connections */
-
-    /*Accept a connection, blocking if one is not available until one connects*/
-    while(1){
+    while (1) {
         connectionSocket = accept(listenSocket,
-                                  (struct sockaddr *)&clientAddress,
+                                  (struct sockaddr *) &clientAddress,
                                   &sizeOfClientInfo);
         if (connectionSocket < 0)
             error("ERROR on accept");
-        printf("SERVER: Connected to client running at host %d port %d\n",
-               ntohs(clientAddress.sin_addr.s_addr),
-               ntohs(clientAddress.sin_port));
-        memset(buffer, '\0', 256);
-        /* Read the client's message from the socket*/
-        charsRead = recv(connectionSocket, buffer, 255, 0);
-        if (charsRead < 0)
-            error("ERROR reading from socket");
-        char* save_ptr = NULL;
-        char** arg = calloc(sizeof(buffer), sizeof(char));
-        char* token = NULL;
-        token = strtok_r(buffer, " ", &save_ptr);
-        arg[0] = token;
-        token = strtok_r(NULL, " \n", &save_ptr);
-        arg[1] = token;
-        /*printf("SERVER: from client: %s %s \n", arg[0], arg[1]);*/
 
-        encrypt_message(arg);
-        memset(buffer, '\0', 256);
-        strncpy(buffer, arg[2], strlen(arg[2])-1);
+        spawnpid = fork();
+        switch (spawnpid) {
+            case 0:
+                memset(buffer, '\0', 256);
+                /* Read the client's message from the socket*/
+                charsRead = recv(connectionSocket, buffer, 255, 0);
+                if (charsRead < 0)
+                    error("ERROR reading from socket");
+                char *save_ptr = NULL;
+                char **arg = calloc(sizeof(buffer), sizeof(char));
+                char* out = calloc(5000, sizeof(char));
+                char *token = NULL;
+                token = strtok_r(buffer, " ", &save_ptr);
+                arg[0] = token;
+                token = strtok_r(NULL, " \n", &save_ptr);
+                arg[1] = token;
+                encrypt_message(arg, out);
+                memset(buffer, '\0', 256);
+                strncpy(buffer, out, strlen(out) - 1);
+                free(arg);
+                free(out);
 
-        /* Send message back to the client*/
-        charsRead = send(connectionSocket, buffer, strlen(buffer), 0);
-        if (charsRead < 0)
-            error("ERROR writing to socket");
-        /* Close the connection socket for this client*/
+                /* Send message back to the client*/
+                charsRead = send(connectionSocket, buffer, strlen(buffer), 0);
+                if (charsRead < 0)
+                    error("ERROR writing to socket");
+                break;
+            case -1:
+                error("fork error");
+                break;
+            default:
+                waitpid(spawnpid, &status, WNOHANG);
+        }
         close(connectionSocket);
-        free(arg);
     }
+
     /* Close the listening socket*/
     close(listenSocket);
     return 0;
