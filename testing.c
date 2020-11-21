@@ -14,30 +14,31 @@ void error(const char *msg) {
 }
 
 void decrypt_message(char** arg, char* out){
-    size_t len_c = 0;
-    size_t len_k = 0;
+    ssize_t len_c;
+    ssize_t len_k;
+    size_t linecap_c = 0;
+    size_t linecap_k = 0;
     char* cipher_line = NULL;
     char* key_line = NULL;
     FILE *key_file = fopen(arg[1], "r");
     FILE *cipher_file = fopen(arg[0], "r");
     if (key_file == NULL || cipher_file == NULL)
         error("ERROR");
-    if (getline(&cipher_line, &len_c, cipher_file) == -1)
-        error("ERROR");
-    if (getline(&key_line, &len_k, key_file) == -1)
+    len_c = getline(&cipher_line, &linecap_c, cipher_file);
+    len_k = getline(&key_line, &linecap_k, key_file);
+    if (len_c == -1 || len_k == -1)
         error("ERROR");
     if (len_k < len_c)
-        error("ERROR key file: line length");
+        error("ERROR");
 
-    char arr[len_c];
-
-    int i = 0;
-    int j = 0;
-    int k = 0;
-    int dif = 0;
+    char* arr = calloc(len_c, sizeof(char));
+    int i=0;
+    int j, k, dif;
     while(cipher_line[i]!='\n'){
         j = cipher_line[i];
         k = key_line[i];
+        if ((((j!=32 && j<65) || j > 90)) || (((k!=32 && k<65) || k > 90)))
+            error("ERROR bad characters");
         if (j == 32)
             j = 91;
         if (k == 32)
@@ -52,31 +53,35 @@ void decrypt_message(char** arg, char* out){
             dif = 0;
             dif = 32;
         }
-        arr[i] = dif;
+        arr[i]= dif;
         i++;
     }
-    arr[i] = '\n';
-    strcpy(out, arr);
+    strncpy(out, arr, strlen(arr));
+    free(arr);
 }
 
+
 void encrypt_message(char** arg, char* out){
-    size_t len_p = 0;
-    size_t len_k = 0;
+    ssize_t len_p;
+    ssize_t len_k;
+    size_t linecap_p = 0;
+    size_t linecap_k = 0;
     char* plain_line = NULL;
     char* key_line = NULL;
     FILE *key_file = fopen(arg[1], "r");
     FILE *plain_file = fopen(arg[0], "r");
     if (key_file == NULL || plain_file == NULL)
-        error("ERROR");
-    if (getline(&plain_line, &len_p, plain_file) == -1)
-        error("ERROR");
-    if (getline(&key_line, &len_k, key_file) == -1)
-        error("ERROR");
+        error("ERROR-NULL");
+    len_p = getline(&plain_line, &linecap_p, plain_file);
+    len_k = getline(&key_line, &linecap_k, key_file);
+    if (len_p == -1 || len_k == -1)
+        error("ERROR-NO FILE");
     if (len_k < len_p)
-        error("ERROR key file: line length");
+        error("ERROR-LINE LENGTH");
 
-    char arr[len_p];
-    int i = 0;
+    char* arr = calloc(len_p, sizeof(char));
+    int i=0;
+    int j, k, sum;
     while(plain_line[i]!='\n'){
         int j = plain_line[i];
         int k = key_line[i];
@@ -86,7 +91,7 @@ void encrypt_message(char** arg, char* out){
             k = 91;
         j = j - 65;
         k = k - 65;
-        int sum = j+k;
+        sum = j+k;
         if (sum > 26)
             sum = sum - 27;
         sum = sum+65;
@@ -97,8 +102,8 @@ void encrypt_message(char** arg, char* out){
         arr[i] = sum;
         i++;
     }
-    arr[i] = '\n';
-    strcpy(out, arr);
+    strncpy(out, arr, strlen(arr));
+    free(arr);
 }
 
 
@@ -114,7 +119,7 @@ int main(int argc, char *argv[]) {
     //encrypt_message(arg, out);
     decrypt_message(arg, out);
 
-    printf("%s", out);
+    printf("%s\n", out);
     free(arg);
     free(out);
 
