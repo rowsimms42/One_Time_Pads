@@ -158,7 +158,6 @@ int main(int argc, char *argv[]){
                 char* out = calloc(size, sizeof(char)+1);
                 encrypt_message(arg, out);
                 char* str = out;
-                //printf("%s", str);
                 int s = size;
                 int n = 0;
                 char to_str[10];

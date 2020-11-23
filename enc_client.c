@@ -82,8 +82,8 @@ int main(int argc, char *argv[]) {
     if (size > 1000){
         charsRead = 0;
         while (p < size) {
-            memset(buffer, 0, sizeof(buffer));
-            charsRead = recv(socketFD, buffer, sizeof(buffer), 0);
+            memset(buffer, '\0', sizeof(buffer));
+            charsRead = recv(socketFD, buffer, sizeof(buffer)-1, 0);
             if (charsRead < 0)
                 error("CLIENT: ERROR reading from socket");
             p = p + charsRead;
