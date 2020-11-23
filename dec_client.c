@@ -36,7 +36,7 @@ void setupAddressStruct(struct sockaddr_in* address,
 int main(int argc, char *argv[]) {
     int socketFD, portNumber, charsWritten, charsRead;
     struct sockaddr_in serverAddress;
-    char buffer[1000];
+    char buffer[1050];
     char type[3];
 
     if (argc < 4) {
@@ -74,7 +74,32 @@ int main(int argc, char *argv[]) {
     charsRead = recv(socketFD, buffer, sizeof(buffer), 0);
     if (charsRead < 0)
         error("CLIENT: ERROR reading from socket");
-    printf("%s\n", buffer);
+    char* ptr = buffer;
+    int size = atoi(ptr);
+    int p = 0;
+    charsWritten = send(socketFD, "ok", 5, 0);
+
+    if (size > 1000){
+        charsRead = 0;
+        while (p < size) {
+            memset(buffer, 0, sizeof(buffer));
+            charsRead = recv(socketFD, buffer, sizeof(buffer), 0);
+            if (charsRead < 0)
+                error("CLIENT: ERROR reading from socket");
+            p = p + charsRead;
+            printf("%s", buffer);
+            memset(buffer, 0, sizeof(buffer));
+        }
+    }
+    else{
+        memset(buffer, '\0', sizeof(buffer));
+        charsRead = recv(socketFD, buffer, sizeof(buffer), 0);
+        if (charsRead < 0)
+            error("CLIENT: ERROR reading from socket");
+        printf("%s", buffer);
+
+    }
+
 
     free(arg);
     /* Close the socket*/

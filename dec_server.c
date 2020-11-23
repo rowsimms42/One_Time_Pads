@@ -72,8 +72,11 @@ void decrypt_message(char** arg, char* out){
         arr[i]= dif;
         i++;
     }
+    arr[i] = '\n';
     strncpy(out, arr, strlen(arr));
     free(arr);
+    fclose(key_file);
+    fclose(cipher_file);
 }
 
 void setupAddressStruct(struct sockaddr_in* address,
@@ -84,9 +87,19 @@ void setupAddressStruct(struct sockaddr_in* address,
     address->sin_addr.s_addr = INADDR_ANY;
 }
 
+int file_size(char** arg){
+    FILE *file = fopen(arg[0], "r");
+    size_t max = 0;
+    char* line = NULL;
+    ssize_t len = getline(&line, &max, file);
+    char* out = calloc(len, sizeof(char));
+    fclose(file);
+    return len;
+}
+
 int main(int argc, char *argv[]){
     int connectionSocket, charsRead;
-    char buffer[1000];
+    char buffer[1050];
     char type[3];
     struct sockaddr_in serverAddress, clientAddress;
     socklen_t sizeOfClientInfo = sizeof(clientAddress);
@@ -133,24 +146,54 @@ int main(int argc, char *argv[]){
                 charsRead = recv(connectionSocket, buffer, 255, 0);
                 if (charsRead < 0)
                     error("ERROR reading from socket");
-                char *save_ptr = NULL;
-                char **arg = calloc(sizeof(buffer), sizeof(char));
-                char* out = calloc(5000, sizeof(char));
-                char *token = NULL;
+                char* save_ptr = NULL;
+                char** arg = calloc(sizeof(buffer), sizeof(char));
+                char* token = NULL;
                 token = strtok_r(buffer, " ", &save_ptr);
                 arg[0] = token;
                 token = strtok_r(NULL, " \n", &save_ptr);
                 arg[1] = token;
+                int size = file_size(arg);
+                char* out = calloc(size, sizeof(char)+1);
                 decrypt_message(arg, out);
-                memset(buffer, '\0', sizeof(buffer));
-                strncpy(buffer, out, strlen(out));
-                free(arg);
-                free(out);
-
-                /* Send message back to the client*/
+                char* str = out;
+                int s = size;
+                int n = 0;
+                char to_str[10];
+                sprintf(to_str, "%d", size);
+                strncpy(buffer, to_str, strlen(to_str));
                 charsRead = send(connectionSocket, buffer, strlen(buffer), 0);
-                if (charsRead < 0)
-                    error("ERROR writing to socket");
+                memset(buffer, 0, sizeof(buffer));
+                charsRead = recv(connectionSocket, buffer, sizeof(buffer), 0);
+
+                if (size > 1000){
+                    while (s > 0) {
+                        if (s >= 1000)
+                            n = 1000;
+                        else
+                            n = s;
+                        memset(buffer, '\0', sizeof(buffer));
+                        strncpy(buffer, out, n);
+                        charsRead = send(connectionSocket, buffer, strlen(buffer), 0);
+                        if (charsRead < 0) {
+                            error("ERROR writing to socket");
+                            break;
+                        }
+                        out = out + 1000;
+                        s = s-1000;
+                    }
+                }
+                else{
+                    memset(buffer, '\0', sizeof(buffer));
+                    strncpy(buffer, out, strlen(str));
+                    charsRead = send(connectionSocket, buffer, strlen(buffer), 0);
+                    if (charsRead < 0) {
+                        error("ERROR writing to socket");
+                        break;
+                    }
+                }
+                free(arg);
+                free(str);
                 break;
             case -1:
                 error("fork error");

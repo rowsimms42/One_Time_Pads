@@ -60,7 +60,6 @@ void decrypt_message(char** arg, char* out){
     free(arr);
 }
 
-
 void encrypt_message(char** arg, char* out){
     ssize_t len_p;
     ssize_t len_k;
