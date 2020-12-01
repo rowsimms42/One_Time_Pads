@@ -1,3 +1,6 @@
+/*Rowan Simmons*/
+/*enc_client.c*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -5,8 +8,6 @@
 #include <sys/types.h>
 #include <sys/socket.h> /* send(),recv()*/
 #include <netdb.h>      /* gethostbyname()*/
-/*gcc -std=gnu99 -o enc_client enc_client.c*/
-/* enc_client plaintext1.txt mykey 57171 > myciphertext*/
 
 /* Error function used for reporting issues*/
 void error(const char *msg) {
@@ -68,7 +69,7 @@ int main(int argc, char *argv[]) {
     if (charsWritten < 0)
         error("CLIENT: ERROR writing to socket");
     if (charsWritten < strlen(buffer))
-        printf("CLIENT: WARNING: Not all data written to socket!\n");
+        fprintf(stderr, "CLIENT: WARNING: Not all data written to socket!\n");
 
     memset(buffer, '\0', sizeof(buffer));
     charsRead = recv(socketFD, buffer, sizeof(buffer), 0);
@@ -79,6 +80,7 @@ int main(int argc, char *argv[]) {
     memset(buffer, '\0', sizeof(buffer));
     charsWritten = send(socketFD, "ok", 5, 0);
 
+    /*read up to 1000 characters at a time*/
     if (size > 1000){
         charsRead = 0;
         while (p < size) {
@@ -91,7 +93,7 @@ int main(int argc, char *argv[]) {
             memset(buffer, 0, sizeof(buffer));
         }
     }
-    else{
+    else{ /*message is less than 1000 chars*/
         memset(buffer, '\0', sizeof(buffer));
         charsRead = recv(socketFD, buffer, sizeof(buffer), 0);
         if (charsRead < 0)
@@ -99,7 +101,6 @@ int main(int argc, char *argv[]) {
         printf("%s", buffer);
 
     }
-
     free(arg);
     /* Close the socket*/
     close(socketFD);

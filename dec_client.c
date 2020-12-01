@@ -1,3 +1,6 @@
+/*Rowan Simmons*/
+/*enc_client.c*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -5,8 +8,6 @@
 #include <sys/types.h>
 #include <sys/socket.h> /* send(),recv()*/
 #include <netdb.h>      /* gethostbyname()*/
-/*gcc -std=gnu99 -o dec_client dec_client.c*/
-/* dec_client plaintext1.txt mykey 57171 > myciphertext*/
 
 /* Error function used for reporting issues*/
 void error(const char *msg) {
@@ -33,6 +34,7 @@ void setupAddressStruct(struct sockaddr_in* address,
            hostInfo->h_length);
 }
 
+/*main function*/
 int main(int argc, char *argv[]) {
     int socketFD, portNumber, charsWritten, charsRead;
     struct sockaddr_in serverAddress;
@@ -79,6 +81,7 @@ int main(int argc, char *argv[]) {
     int p = 0;
     charsWritten = send(socketFD, "ok", 5, 0);
 
+    /*read up to 1000 characters at a time*/
     if (size > 1000){
         charsRead = 0;
         while (p < size) {
@@ -91,7 +94,7 @@ int main(int argc, char *argv[]) {
             memset(buffer, 0, sizeof(buffer));
         }
     }
-    else{
+    else{ /*message is less than 1000 chars*/
         memset(buffer, '\0', sizeof(buffer));
         charsRead = recv(socketFD, buffer, sizeof(buffer), 0);
         if (charsRead < 0)
@@ -99,8 +102,6 @@ int main(int argc, char *argv[]) {
         printf("%s", buffer);
 
     }
-
-
     free(arg);
     /* Close the socket*/
     close(socketFD);
